@@ -3,8 +3,8 @@ VAR_GLOBAL
     DI_Door_Zone2 AT  %I0.4    :BOOL  ;  (*Puerta Zona 2*)
     AI_Temp_Sensor1 AT  %MD0     :DINT  ;  (*Sensor Temperatura Zona 1*)
     AI_Temp_Sensor2 AT  %MD4     :DINT  ;  (*Sensor Temperatura Zona 2*)
-    DO_Emergency_Vent AT  %Q0.4    :BOOL  ;  (*Ventilación*)
-    DO_Emergency_Light AT  %Q0.5    :BOOL  ;  (*Luces Emergencia*)
+    HMI_Temp_Zone1Global AT  %VD0     :DINT  ;  (*Display Temperatura Zona 1*)
+    HMI_Temp_Zone2Global AT  %VD4     :DINT  ;  (*Display Temperatura Zona 2*)
     DI_Reset_Button AT  %I0.0    :BOOL  ;  (*Botón Reset*)
     DI_Manual_Override AT  %I0.1    :BOOL  ;  (*Anulación Manual*)
     DI_System_Enable AT  %I0.2    :BOOL  ;  (*Habilitación Sistema*)
@@ -13,6 +13,8 @@ VAR_GLOBAL
     DO_Alarm_Light AT  %Q0.1    :BOOL  ;  (*Luz Alarma*)
     DO_Sprinkler_Zone1 AT  %Q0.2    :BOOL  ;  (*Rociador Zona 1*)
     DO_Sprinkler_Zone2 AT  %Q0.3    :BOOL  ;  (*Rociador Zona 2*)
+    DO_Emergency_Vent AT  %Q0.4    :BOOL  ;  (*Ventilación*)
+    DO_Emergency_Light AT  %Q0.5    :BOOL  ;  (*Luces Emergencia*)
     DO_Beacon_Red AT  %Q0.6    :BOOL  ;  (*Baliza Roja*)
 END_VAR
 VAR_GLOBAL
@@ -23,4 +25,5 @@ VAR_GLOBAL
     T5     :TON   ;  (*  *)
     T6     :TP    ;  (*  *)
     T7     :TP    ;  (*  *)
+    T8     :TON   ;  (*  *)
 END_VAR

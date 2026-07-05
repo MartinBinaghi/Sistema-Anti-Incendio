@@ -16,12 +16,12 @@ MUL    DI#100, Temp_Calc_Z2
 DIV    DI#3276, Temp_Calc_Z2
 DI_TO_R    Temp_Calc_Z2, HMI_Temp_Zone2
 (* Network 2 *)
-(*Limitar temperatura minima zona 1*)
+(*Limitar temperatura minima zona 1 REVISAR*)
 LD    FALSE
 LT    HMI_Temp_Zone1, 0.0
 MOVE    0.0, HMI_Temp_Zone1
 (* Network 3 *)
-(*Limitar temperatura maxima zona 1*)
+(*Limitar temperatura maxima zona 1 REVISAR*)
 LD    FALSE
 GT    HMI_Temp_Zone1, 100.0
 MOVE    100.0, HMI_Temp_Zone1
@@ -220,3 +220,52 @@ ST   %Q0.3
 LD    %Q0.2
 OR    %Q0.3
 ST   HMI_Sprinklers_Active
+(* Network 41 *)
+(*Ventilacion de emergencia*)
+LD    Alarm_Critical
+OR    Alarm_Latched
+ST   %Q0.4
+(* Network 42 *)
+(*Luces de emergencia*)
+LD    HMI_Alarm_Active
+ST   %Q0.5
+(* Network 43 *)
+(*Sistema apagado (status 0)*)
+LDN    System_Active
+MOVE    0, HMI_System_Status
+(* Network 44 *)
+(*Sistema critico (status 3)*)
+LD    System_Active
+AND(
+LD    Alarm_Critical
+OR    Alarm_Latched
+)
+MOVE    3, HMI_System_Status
+(* Network 45 *)
+(*Sistema advertencia (status 2)*)
+LD    System_Active
+AND    Alarm_Warning
+ANDN    Alarm_Critical
+MOVE    2, HMI_System_Status
+(* Network 46 *)
+(*Sistema normal (status 1)*)
+LD    System_Active
+ANDN    Alarm_Warning
+ANDN    Alarm_Critical
+MOVE    1, HMI_System_Status
+(* Network 47 *)
+(*Timer de 1 hora*)
+LD    System_Active
+TON   T8, 3600
+(* Network 48 *)
+(*Incrementar Contador de Horas*)
+LD    T8
+ADD    1, HMI_System_Hours
+(* Network 49 *)
+(*Temp global 1*)
+LD    System_Active
+MOVE    Temp_Calc_Z1, HMI_Temp_Zone1Global
+(* Network 50 *)
+(*Temp global 1*)
+LD    System_Active
+MOVE    Temp_Calc_Z2, HMI_Temp_Zone2Global
