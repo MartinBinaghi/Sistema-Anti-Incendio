@@ -8,11 +8,31 @@
 - Accesos directos en la carpeta padre (`..\`): `KincoBuilder V8.5En.lnk`, `Kinco DTools V4.5.lnk`, `KDManager V4.5.lnk`
 - Instalación: `C:\Program Files (x86)\Kinco\KincoBuilderEn\` (ayuda `KincoBuilder_V1.1.5.0En.chm`, manual `HMI-PLC User Manual.pdf`)
 - Computer use quedó activado en la app de Claude: la próxima sesión puede abrir KincoBuilder y DTools.
+- **DTools se abre como admin** (manifest `highestAvailable`) y así computer use no puede hacer clic. Para manejarlo, abrirlo desde PowerShell con `$env:__COMPAT_LAYER='RunAsInvoker'; Start-Process "C:\Kinco\Kinco DTools V4.5\Kinco DTools.exe" -ArgumentList '"<ruta>\sistema-anti-incendio.dpj"'`. No usar `open_application`: lanza otra copia elevada y abre el actualizador.
+- Las pantallas `.whe` están cifradas (`KINCOEN`): solo se editan desde DTools.
 
 ## Estado
-- Ladder: 47 networks, se reescribió `MAIN_MAIN.ilp` a mano (KincoBuilder estaba cerrado). Compila en KincoBuilder sin errores (ver abajo).
-- Cambios sin commitear: `HANDOFF.md`, `MAIN_MAIN.ilp`, `MAIN_MAIN.ilv` (`git diff` los muestra).
-- HMI: hay un proyecto creado, pero falta hacer las pantallas.
+- Ladder: 47 networks. Compila en KincoBuilder sin errores (ver abajo).
+- HMI: 2 pantallas hechas en DTools (ver abajo). Compila con 0 warnings y 0 errores.
+
+## Mapa de direcciones PLC <-> HMI (todo en %V, retentivo)
+| Variable | Dirección | Tipo |
+|---|---|---|
+| HMI_Temp_Zone1 / Zone2 / Max / Avg (°C) | VD8 / VD12 / VD16 / VD20 | REAL |
+| HMI_Threshold_Warning / Critical (°C) | VD24 / VD28 | REAL |
+| HMI_Delay_Alarm / Delay_Sprinkler (s) | VW32 / VW34 | INT |
+| HMI_System_Status (0 apagado, 1 normal, 2 advertencia, 3 crítico) | VW36 | INT |
+| HMI_Event_Counter / HMI_System_Hours | VW38 / VW40 | INT |
+| HMI_Fire_Zone1, Fire_Zone2, Alarm_Active, Sprinklers_Active, Silence_Active, Test_Mode | V50.0 ... V50.5 | BOOL |
+| HMI_BTN_Reset, Silence_Alarm, Test_System, Manual_Zone1, Manual_Zone2 | V51.0 ... V51.4 | BOOL |
+| Temperaturas en décimas (copia DINT) | VD0 / VD4 | DINT |
+
+Las direcciones se pusieron en el `.ilv` (tabla local con `AT %V...`). KincoBuilder lo acepta y compila.
+
+## Pantallas HMI (DTools)
+- **0: Frame0 (principal):** título + estado (`VW36`, texto con color), temperatura de cada zona (`VD8`/`VD12`) con lámpara de fuego (`V50.0`/`V50.1`, parpadea en rojo), máx/prom (`VD16`/`VD20`), indicadores de sirena (`Q0.0`), rociadores, silencio y test (`V50.3`-`V50.5`). Botones momentáneos RESET/SILENCIAR/TEST (`V51.0`-`V51.2`) y CONFIG (va a la pantalla 10).
+- **10: Configuracion:** entradas de umbral advertencia/crítico (`VD24`/`VD28`, 0-100 °C) y retardos (`VW32`/`VW34`, 0-300 s), contadores eventos/horas (`VW38`/`VW40`), botones con retención MANUAL Z1/Z2 (`V51.3`/`V51.4`) y VOLVER.
+- La simulación offline (KHSimulator) no abrió la pantalla con DTools sin admin. No se probó.
 
 ## Prueba en KincoBuilder (2026-11-04)
 1. OK: Compile All -> 0 errores, 0 warnings, 173 instrucciones.
@@ -45,9 +65,9 @@
 - Área V: 4 KB. Es retentiva de VB0 a VB1907.
 
 ## Pendientes
-1. Probar el ladder en el PLC real (ver arriba, punto 4).
-2. Mover las variables `HMI_*` del área %L a %V para que la HMI pueda leerlas y escribirlas. Hoy solo están en %V las temperaturas (%VD0/%VD4). Seguramente haya que declararlas como globales en KincoBuilder: la tabla global vive en el `.kpr` (binario), así que conviene hacerlo desde la interfaz.
+1. Descargar PLC + HMI al MK043E y probar todo junto (ver arriba, punto 4, y que los botones e indicadores respondan).
+2. Los umbrales y retardos que se cambian desde la HMI se pisan en cada arranque (network 0 los vuelve a 50/70/3/5). Si tienen que quedar guardados, sacar esa inicialización o hacerla solo si el valor es 0.
 3. Confirmar en la configuración de hardware que AI0 y AI1 estén en 4-20 mA.
 4. Sensor cortado: con 0 mA la temperatura queda en 0 °C y no se avisa ninguna falla.
 5. `AI_Temp_Sensor1/2` (%MD0/%MD4) ya no se usan: el programa lee %AIW0/%AIW2 directo.
-6. Hacer las pantallas de la HMI en DTools.
+6. Rociador manual: `HMI_BTN_Manual_Zone1/2` solo actúa si `T5` terminó (es decir, con alarma crítica). Si el manual tiene que funcionar siempre, cambiar las networks 36/37.
