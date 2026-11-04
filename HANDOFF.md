@@ -27,7 +27,7 @@
 | HMI_BTN_Reset, Silence_Alarm, Test_System, Manual_Zone1, Manual_Zone2 | V51.0 ... V51.4 | BOOL |
 | Temperaturas en décimas (copia DINT) | VD0 / VD4 | DINT |
 
-Las direcciones se pusieron en el `.ilv` (tabla local con `AT %V...`). KincoBuilder lo acepta y compila.
+Son **variables globales** (Global Variable). Las REAL van como `%VR8`...`%VR28`, que es la misma memoria que `VD8`...`VD28`; la HMI las lee como `VD` float. KincoBuilder toma la tabla global del `.kpr`, no del `.kgv` (el `.kgv` es solo una copia que regenera). Para cargar muchas a la vez: clic derecho en la tabla > Import from .csv (formato `Symbol,Address,Data Type,Comment,`). En el `.ilp` las referencias a globales se guardan por dirección (`%V51.0`) y el editor muestra el nombre.
 
 ## Pantallas HMI (DTools)
 - **0: Frame0 (principal):** título + estado (`VW36`, texto con color), temperatura de cada zona (`VD8`/`VD12`) con lámpara de fuego (`V50.0`/`V50.1`, parpadea en rojo), máx/prom (`VD16`/`VD20`), indicadores de sirena (`Q0.0`), rociadores, silencio y test (`V50.3`-`V50.5`). Botones momentáneos RESET/SILENCIAR/TEST (`V51.0`-`V51.2`) y CONFIG (va a la pantalla 10).
@@ -38,7 +38,8 @@ Las direcciones se pusieron en el `.ilv` (tabla local con `AT %V...`). KincoBuil
 1. OK: Compile All -> 0 errores, 0 warnings, 173 instrucciones.
 2. OK: MAIN en LD carga el `.ilp` editado (networks 0-46). Se ven bien la 0 (`%SM0.1`), la 33 (sirena con dos `OR(`), la 45 (`R_TRIG` de minutos) y la 46.
 3. Al compilar, KincoBuilder guardó el proyecto: `.obj` ya tiene la copia nueva, `.kgv` se reordenó y quitó T3/T6/T7.
-4. **Pendiente (necesita el PLC):** sin simulador en KincoBuilder. Descargar y forzar `%AIW0` = 16000 -> 75 °C, `Fire_Detected_Zone1`, `Alarm_Critical` y rociador a los 5 s.
+4. OK en el **simulador offline de KincoBuilder** (botón "Start offline simulator" de la barra, o Debug > Start Simulator). Con `I0.2` = 1 desde el panel I/O del simulador y `%AIW0` = 16000 forzado desde la Status Chart (Debug > Force > Force All): `VD0` = 750 (75,0 °C), `V50.0` = 1, `VW36` = 3 (crítico), y después del retardo sirena `Q0.0` = 1 y rociador `Q0.2` = 1. La Status Chart no tiene formato float: para ver temperaturas usar `VD0`/`VD4` (décimas).
+5. Antes, con las variables HMI como locales en `%V`, el simulador avisaba "memory allocation for the local variables does not suit the current CPU". Al pasarlas a globales el aviso ya no aparece y la prueba del punto 4 da lo mismo. **No usar nunca "Reallocate Local Variables"**.
 
 ## Qué se cambió en el ladder (resumen)
 - **Temperaturas (networks 1-7):** leen `%AIW0`/`%AIW2` con `(raw-4000)/16`, que da décimas de °C. El límite de 0 a 100 °C se aplica en DINT y recién después se pasa a REAL. Para la HMI se copian a %VD0/%VD4 en décimas.

@@ -71,43 +71,43 @@ ST   System_Active
 (* Network 12 *)
 (*Flanco Reset*)
 LD    %I0.0
-OR    HMI_BTN_Reset
+OR    %V51.0
 R_TRIG
 TP   T0, 2000
 ST   Reset_Trigger
 (* Network 13 *)
 (*Silenciar*)
-LD    HMI_BTN_Silence_Alarm
+LD    %V51.1
 R_TRIG
 ST   Silence_Trigger
 (* Network 14 *)
 (*Test*)
-LD    HMI_BTN_Test_System
+LD    %V51.2
 R_TRIG
 ST   Test_Trigger
 (* Network 15 *)
 (*Activar Modo Test*)
 LD    Test_Trigger
-S    Test_Mode
+S    %V50.5
 (* Network 16 *)
 (*Timer test 10 s (T2 = base 1 ms)*)
-LD    Test_Mode
+LD    %V50.5
 TON   T2, 10000
 (* Network 17 *)
 LD    T2
-R    Test_Mode
+R    %V50.5
 (* Network 18 *)
 (*Deteccion de Incendio Zona 1*)
 LD    System_Active
 GE    HMI_Temp_Zone1, HMI_Threshold_Critical
 ST   Fire_Detected_Zone1
-ST   HMI_Fire_Zone1
+ST   %V50.0
 (* Network 19 *)
 (*Deteccion de Incendio Zona 2*)
 LD    System_Active
 GE    HMI_Temp_Zone2, HMI_Threshold_Critical
 ST   Fire_Detected_Zone2
-ST   HMI_Fire_Zone2
+ST   %V50.1
 (* Network 20 *)
 (*Cualquier fuego detectado*)
 LD    Fire_Detected_Zone1
@@ -121,7 +121,7 @@ ST   Alarm_Warning
 (* Network 22 *)
 (*Alarma Critica*)
 LD    Any_Fire_Detected
-OR    Test_Mode
+OR    %V50.5
 ST   Alarm_Critical
 (* Network 23 *)
 (*Memoria de Alarma (Latched) + contador de eventos en el flanco*)
@@ -134,26 +134,26 @@ S    Alarm_Latched
 LD    Reset_Trigger
 ANDN    Alarm_Critical
 R    Alarm_Latched
-R    Silence_Active
+R    %V50.4
 (* Network 25 *)
 (*Estado de alarma activo*)
 LD    Alarm_Warning
 OR    Alarm_Critical
 OR    Alarm_Latched
-ST   HMI_Alarm_Active
+ST   %V50.2
 (* Network 26 *)
 (*Silenciar alarma*)
 LD    Silence_Trigger
-S    Silence_Active
+S    %V50.4
 (* Network 27 *)
 (*Timer silencio 120 s (T8 = base 10 ms)*)
-LD    Silence_Active
+LD    %V50.4
 TON   T8, 12000
 (* Network 28 *)
 (*Desactivar silencio*)
 LD    T8
 OR    Alarm_Critical
-R    Silence_Active
+R    %V50.4
 (* Network 29 *)
 (*Retardo alarma en ticks de 10 ms (s x 100)*)
 LD    System_Active
@@ -184,11 +184,11 @@ LD    Alarm_Warning
 ANDN    Alarm_Critical
 AND    %SM0.3
 )
-ANDN    Silence_Active
+ANDN    %V50.4
 ST   %Q0.0
 (* Network 34 *)
 (*Luz de alarma*)
-LD    HMI_Alarm_Active
+LD    %V50.2
 ST   %Q0.1
 (* Network 35 *)
 (*Baliza Roja Parpadeante 1 Hz (SM0.3)*)
@@ -199,20 +199,20 @@ ST   %Q0.6
 (* Network 36 *)
 (*Rociador Zona 1*)
 LD    Fire_Detected_Zone1
-OR    HMI_BTN_Manual_Zone1
+OR    %V51.3
 AND    T5
 ST   %Q0.2
 (* Network 37 *)
 (*Rociador Zona 2*)
 LD    Fire_Detected_Zone2
-OR    HMI_BTN_Manual_Zone2
+OR    %V51.4
 AND    T5
 ST   %Q0.3
 (* Network 38 *)
 (*Estado de rociadores activos*)
 LD    %Q0.2
 OR    %Q0.3
-ST   HMI_Sprinklers_Active
+ST   %V50.3
 (* Network 39 *)
 (*Ventilacion de emergencia*)
 LD    Alarm_Critical
@@ -220,7 +220,7 @@ OR    Alarm_Latched
 ST   %Q0.4
 (* Network 40 *)
 (*Luces de emergencia*)
-LD    HMI_Alarm_Active
+LD    %V50.2
 ST   %Q0.5
 (* Network 41 *)
 (*Sistema apagado (status 0)*)
