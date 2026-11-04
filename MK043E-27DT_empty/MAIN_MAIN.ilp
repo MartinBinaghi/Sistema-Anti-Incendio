@@ -1,239 +1,232 @@
 (*2*)
 (* Network 0 *)
-(*Conversion ADC a Temperatura Zona 1*)
-LD    FALSE
-MOVE    AI_Temp_Sensor1, Temp_Calc_Z1
-SUB    DI#819, Temp_Calc_Z1
-MUL    DI#100, Temp_Calc_Z1
-DIV    DI#3276, Temp_Calc_Z1
-DI_TO_R    Temp_Calc_Z1, HMI_Temp_Zone1
+(*Inicializar umbrales y retardos (primer scan)*)
+LD    %SM0.1
+MOVE    50.0, HMI_Threshold_Warning
+MOVE    70.0, HMI_Threshold_Critical
+MOVE    3, HMI_Delay_Alarm
+MOVE    5, HMI_Delay_Sprinkler
 (* Network 1 *)
-(*Conversion ADC a Temperatura Zona 2*)
-LD    FALSE
-MOVE    AI_Temp_Sensor2, Temp_Calc_Z2
-SUB    DI#819, Temp_Calc_Z2
-MUL    DI#100, Temp_Calc_Z2
-DIV    DI#3276, Temp_Calc_Z2
-DI_TO_R    Temp_Calc_Z2, HMI_Temp_Zone2
+(*Conversion AI Zona 1: 4-20mA = 4000-20000 -> 0-1000 (decimas de °C)*)
+LD    %SM0.0
+I_TO_DI    %AIW0, Temp_Calc_Z1
+SUB    DI#4000, Temp_Calc_Z1
+DIV    DI#16, Temp_Calc_Z1
 (* Network 2 *)
-(*Limitar temperatura minima zona 1 REVISAR*)
-LD    FALSE
-LT    HMI_Temp_Zone1, 0.0
-MOVE    0.0, HMI_Temp_Zone1
+(*Conversion AI Zona 2*)
+LD    %SM0.0
+I_TO_DI    %AIW2, Temp_Calc_Z2
+SUB    DI#4000, Temp_Calc_Z2
+DIV    DI#16, Temp_Calc_Z2
 (* Network 3 *)
-(*Limitar temperatura maxima zona 1 REVISAR*)
-LD    FALSE
-GT    HMI_Temp_Zone1, 100.0
-MOVE    100.0, HMI_Temp_Zone1
+(*Limitar temperatura minima zona 1*)
+LD    %SM0.0
+LT    Temp_Calc_Z1, DI#0
+MOVE    DI#0, Temp_Calc_Z1
 (* Network 4 *)
-(*Limitar temperatura minima zona 2*)
-LD    FALSE
-LT    HMI_Temp_Zone2, 0.0
-MOVE    0.0, HMI_Temp_Zone2
+(*Limitar temperatura maxima zona 1*)
+LD    %SM0.0
+GT    Temp_Calc_Z1, DI#1000
+MOVE    DI#1000, Temp_Calc_Z1
 (* Network 5 *)
-(*Limitar temperatura maxima zona 2*)
-LD    FALSE
-GT    HMI_Temp_Zone2, 100.0
-MOVE    100.0, HMI_Temp_Zone2
+(*Limitar temperatura minima zona 2*)
+LD    %SM0.0
+LT    Temp_Calc_Z2, DI#0
+MOVE    DI#0, Temp_Calc_Z2
 (* Network 6 *)
-(*RUNG 7: Calcular Temperatura Máxima*)
-LD    FALSE
+(*Limitar temperatura maxima zona 2*)
+LD    %SM0.0
+GT    Temp_Calc_Z2, DI#1000
+MOVE    DI#1000, Temp_Calc_Z2
+(* Network 7 *)
+(*Pasar a °C (REAL) y a la HMI (decimas, %VD0/%VD4)*)
+LD    %SM0.0
+DI_TO_R    Temp_Calc_Z1, HMI_Temp_Zone1
+DIV    10.0, HMI_Temp_Zone1
+DI_TO_R    Temp_Calc_Z2, HMI_Temp_Zone2
+DIV    10.0, HMI_Temp_Zone2
+MOVE    Temp_Calc_Z1, HMI_Temp_Zone1Global
+MOVE    Temp_Calc_Z2, HMI_Temp_Zone2Global
+(* Network 8 *)
+(*Calcular Temperatura Máxima*)
+LD    %SM0.0
 GE    HMI_Temp_Zone1, HMI_Temp_Zone2
 MOVE    HMI_Temp_Zone1, HMI_Temp_Max
-(* Network 7 *)
-LD    FALSE
+(* Network 9 *)
+LD    %SM0.0
 LT    HMI_Temp_Zone1, HMI_Temp_Zone2
 MOVE    HMI_Temp_Zone2, HMI_Temp_Max
-(* Network 8 *)
+(* Network 10 *)
 (*Calcular temperatura promedio*)
-LD    FALSE
+LD    %SM0.0
 MOVE    HMI_Temp_Zone1, HMI_Temp_Avg
 ADD    HMI_Temp_Zone2, HMI_Temp_Avg
 DIV    2.0, HMI_Temp_Avg
-(* Network 9 *)
+(* Network 11 *)
 (*Sistema Activo*)
 LD    %I0.2
 ANDN    %I0.1
 ANDN    %I0.5
 ST   System_Active
-(* Network 10 *)
+(* Network 12 *)
 (*Flanco Reset*)
 LD    %I0.0
 OR    HMI_BTN_Reset
 R_TRIG
 TP   T0, 2000
 ST   Reset_Trigger
-(* Network 11 *)
+(* Network 13 *)
 (*Silenciar*)
 LD    HMI_BTN_Silence_Alarm
 R_TRIG
 ST   Silence_Trigger
-(* Network 12 *)
+(* Network 14 *)
 (*Test*)
 LD    HMI_BTN_Test_System
 R_TRIG
 ST   Test_Trigger
-(* Network 13 *)
+(* Network 15 *)
 (*Activar Modo Test*)
 LD    Test_Trigger
-ADD    1, HMI_Event_Counter
 S    Test_Mode
-(* Network 14 *)
+(* Network 16 *)
+(*Timer test 10 s (T2 = base 1 ms)*)
 LD    Test_Mode
-TON   T2, 1000
-__CR_EQ_1
-MOVE    T2, %VW14
-__CR_RESTORE
-ST   %BR0.0
-(* Network 15 *)
+TON   T2, 10000
+(* Network 17 *)
 LD    T2
 R    Test_Mode
-(* Network 16 *)
+(* Network 18 *)
 (*Deteccion de Incendio Zona 1*)
 LD    System_Active
 GE    HMI_Temp_Zone1, HMI_Threshold_Critical
 ST   Fire_Detected_Zone1
 ST   HMI_Fire_Zone1
-(* Network 17 *)
+(* Network 19 *)
 (*Deteccion de Incendio Zona 2*)
 LD    System_Active
 GE    HMI_Temp_Zone2, HMI_Threshold_Critical
 ST   Fire_Detected_Zone2
 ST   HMI_Fire_Zone2
-(* Network 18 *)
+(* Network 20 *)
 (*Cualquier fuego detectado*)
 LD    Fire_Detected_Zone1
 OR    Fire_Detected_Zone2
 ST   Any_Fire_Detected
-(* Network 19 *)
-(*Alarma de advertencia Zona 1*)
-LD    System_Active
-GE    HMI_Temp_Zone1, HMI_Threshold_Critical
-ST   Alarm_Warning
-(* Network 20 *)
-(*Alarma de advertencia Zona 2*)
-LD    System_Active
-GE    HMI_Temp_Zone2, HMI_Threshold_Critical
-ST   Alarm_Warning
 (* Network 21 *)
+(*Alarma de advertencia (cualquier zona: usa la temperatura maxima)*)
+LD    System_Active
+GE    HMI_Temp_Max, HMI_Threshold_Warning
+ST   Alarm_Warning
+(* Network 22 *)
 (*Alarma Critica*)
 LD    Any_Fire_Detected
 OR    Test_Mode
 ST   Alarm_Critical
-(* Network 22 *)
-(*Memoria de Alarma (Latched)*)
+(* Network 23 *)
+(*Memoria de Alarma (Latched) + contador de eventos en el flanco*)
 LD    Alarm_Critical
+R_TRIG
 ADD    1, HMI_Event_Counter
 S    Alarm_Latched
-(* Network 23 *)
+(* Network 24 *)
 (*Reset de alarma*)
 LD    Reset_Trigger
 ANDN    Alarm_Critical
 R    Alarm_Latched
 R    Silence_Active
-(* Network 24 *)
+(* Network 25 *)
 (*Estado de alarma activo*)
 LD    Alarm_Warning
 OR    Alarm_Critical
 OR    Alarm_Latched
 ST   HMI_Alarm_Active
-(* Network 25 *)
+(* Network 26 *)
 (*Silenciar alarma*)
 LD    Silence_Trigger
 S    Silence_Active
-(* Network 26 *)
-(*Timer silencio 120 segundos*)
-LD    Silence_Active
-TON   T3, 12000
-__CR_EQ_1
-MOVE    T3, %VW32
-__CR_RESTORE
-ST   %BR0.0
 (* Network 27 *)
+(*Timer silencio 120 s (T8 = base 10 ms)*)
+LD    Silence_Active
+TON   T8, 12000
+(* Network 28 *)
 (*Desactivar silencio*)
-LD    T3
+LD    T8
 OR    Alarm_Critical
 R    Silence_Active
-(* Network 28 *)
-(*Convertir HMI_Delay_Alarm a Time*)
+(* Network 29 *)
+(*Retardo alarma en ticks de 10 ms (s x 100)*)
 LD    System_Active
 MOVE    HMI_Delay_Alarm, Delay_Alarm_Time
-MUL    1000, Delay_Alarm_Time
-(* Network 29 *)
+MUL    100, Delay_Alarm_Time
+(* Network 30 *)
 (*Timer retardo alarma*)
 LD    Alarm_Critical
 TON   T4, Delay_Alarm_Time
-(* Network 30 *)
-(*Convertir HMI_Delay_Sprinkler*)
+(* Network 31 *)
+(*Retardo rociadores en ticks de 10 ms (s x 100)*)
 LD    System_Active
 MOVE    HMI_Delay_Sprinkler, Delay_Sprinkler_Time
-MUL    1000, Delay_Sprinkler_Time
-(* Network 31 *)
+MUL    100, Delay_Sprinkler_Time
+(* Network 32 *)
 (*Timer Retardo Rociadores*)
 LD    Alarm_Critical
 TON   T5, Delay_Sprinkler_Time
-(* Network 32 *)
-(*Pulso Alarma 500ms*)
-LDN    T6
-TP   T6, 50
 (* Network 33 *)
-(*Pulso Baliza 250ms*)
-LDN    T7
-TP   T7, 250
-(* Network 34 *)
-(*Sirena Continua (Alarma Critica)*)
+(*Sirena: continua tras el retardo o con memoria; intermitente 1 Hz (SM0.3) en advertencia*)
 LD    T4
-OR    Alarm_Latched
-ANDN    Silence_Active
-ST   %Q0.0
-(* Network 35 *)
-(*Sirena Intermitente (Advertencia)*)
+OR(
+LD    Alarm_Latched
+ANDN    Alarm_Critical
+)
+OR(
 LD    Alarm_Warning
 ANDN    Alarm_Critical
-AND    T6
+AND    %SM0.3
+)
 ANDN    Silence_Active
 ST   %Q0.0
-(* Network 36 *)
+(* Network 34 *)
 (*Luz de alarma*)
 LD    HMI_Alarm_Active
 ST   %Q0.1
-(* Network 37 *)
-(*Baliza Roja Parpadeante*)
+(* Network 35 *)
+(*Baliza Roja Parpadeante 1 Hz (SM0.3)*)
 LD    Alarm_Critical
 OR    Alarm_Latched
-AND    T7
+AND    %SM0.3
 ST   %Q0.6
-(* Network 38 *)
+(* Network 36 *)
 (*Rociador Zona 1*)
 LD    Fire_Detected_Zone1
 OR    HMI_BTN_Manual_Zone1
 AND    T5
 ST   %Q0.2
-(* Network 39 *)
+(* Network 37 *)
 (*Rociador Zona 2*)
 LD    Fire_Detected_Zone2
 OR    HMI_BTN_Manual_Zone2
 AND    T5
 ST   %Q0.3
-(* Network 40 *)
+(* Network 38 *)
 (*Estado de rociadores activos*)
 LD    %Q0.2
 OR    %Q0.3
 ST   HMI_Sprinklers_Active
-(* Network 41 *)
+(* Network 39 *)
 (*Ventilacion de emergencia*)
 LD    Alarm_Critical
 OR    Alarm_Latched
 ST   %Q0.4
-(* Network 42 *)
+(* Network 40 *)
 (*Luces de emergencia*)
 LD    HMI_Alarm_Active
 ST   %Q0.5
-(* Network 43 *)
+(* Network 41 *)
 (*Sistema apagado (status 0)*)
 LDN    System_Active
 MOVE    0, HMI_System_Status
-(* Network 44 *)
+(* Network 42 *)
 (*Sistema critico (status 3)*)
 LD    System_Active
 AND(
@@ -241,31 +234,29 @@ LD    Alarm_Critical
 OR    Alarm_Latched
 )
 MOVE    3, HMI_System_Status
-(* Network 45 *)
+(* Network 43 *)
 (*Sistema advertencia (status 2)*)
 LD    System_Active
 AND    Alarm_Warning
 ANDN    Alarm_Critical
+ANDN    Alarm_Latched
 MOVE    2, HMI_System_Status
-(* Network 46 *)
+(* Network 44 *)
 (*Sistema normal (status 1)*)
 LD    System_Active
 ANDN    Alarm_Warning
 ANDN    Alarm_Critical
+ANDN    Alarm_Latched
 MOVE    1, HMI_System_Status
-(* Network 47 *)
-(*Timer de 1 hora*)
+(* Network 45 *)
+(*Contar minutos con el reloj de 60 s (SM0.6)*)
 LD    System_Active
-TON   T8, 3600
-(* Network 48 *)
-(*Incrementar Contador de Horas*)
-LD    T8
+AND    %SM0.6
+R_TRIG
+ADD    1, System_Minutes
+(* Network 46 *)
+(*Cada 60 minutos sumar una hora*)
+LD    %SM0.0
+GE    System_Minutes, 60
 ADD    1, HMI_System_Hours
-(* Network 49 *)
-(*Temp global 1*)
-LD    System_Active
-MOVE    Temp_Calc_Z1, HMI_Temp_Zone1Global
-(* Network 50 *)
-(*Temp global 1*)
-LD    System_Active
-MOVE    Temp_Calc_Z2, HMI_Temp_Zone2Global
+MOVE    0, System_Minutes

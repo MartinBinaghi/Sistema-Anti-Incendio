@@ -2,21 +2,52 @@
 
 ## Equipo y herramientas
 - PLC con HMI integrada Kinco MK043E-27DT
-- PLC: KincoBuilder -> `MK043E-27DT_empty.kpr` (programa en `MK043E-27DT_empty/MAIN_MAIN.ilp`)
+- PLC: KincoBuilder -> `MK043E-27DT_empty.kpr` (programa en `MK043E-27DT_empty/MAIN_MAIN.ilp`, variables locales en `MAIN_MAIN.ilv`)
 - HMI: Kinco DTools -> `sistema-anti-incendio/sistema-anti-incendio.dpj`
-- Guía de diseño: `ladder_fire_system.md`
+- Guía de diseño: `ladder_fire_system.md` (ojo: su escala de AI 819-4095 y sus tiempos están mal para este equipo, ver abajo)
+- Accesos directos en la carpeta padre (`..\`): `KincoBuilder V8.5En.lnk`, `Kinco DTools V4.5.lnk`, `KDManager V4.5.lnk`
+- Instalación: `C:\Program Files (x86)\Kinco\KincoBuilderEn\` (ayuda `KincoBuilder_V1.1.5.0En.chm`, manual `HMI-PLC User Manual.pdf`)
+- Computer use quedó activado en la app de Claude: la próxima sesión puede abrir KincoBuilder y DTools.
 
 ## Estado
-- Ladder: los 48 rungs de la guía están implementados, más los rungs 49-50 (temperaturas `HMI_Temp_Zone*Global` en %VD0/%VD4 para la HMI).
-- HMI: hay un proyecto creado, pero falta hacer las pantallas (punto trabado).
+- Ladder: 47 networks, se reescribió `MAIN_MAIN.ilp` a mano (KincoBuilder estaba cerrado). Compila en KincoBuilder sin errores (ver abajo).
+- Cambios sin commitear: `HANDOFF.md`, `MAIN_MAIN.ilp`, `MAIN_MAIN.ilv` (`git diff` los muestra).
+- HMI: hay un proyecto creado, pero falta hacer las pantallas.
 
-## Pendientes en el ladder
-1. Networks 0-8 empiezan con `LD FALSE`: nunca se ejecutan (no hay conversión de temperatura, ni límites, ni máximo/promedio).
-2. Networks 19-20: la advertencia usa `HMI_Threshold_Critical` en vez de `HMI_Threshold_Warning`, y las dos escriben en `Alarm_Warning` (bobina doble). Unir con OR.
-3. Networks 34-35: bobina doble en `%Q0.0` (sirena); la 35 pisa a la 34. Unir con OR.
-4. Networks 13 y 22: `ADD 1, HMI_Event_Counter` suma en cada scan. Hace falta un flanco.
-5. Networks 47-48: T8 nunca se resetea, así que después de la primera hora suma en cada scan.
-6. Confirmar la base de tiempo de los timers: T7 250, T8 3600 y `Delay_*_Time x1000` no coinciden con los demás (que suponen una base de 10 ms).
-7. Umbrales sin valor inicial (0.0): con temperaturas en 0, el sistema detecta fuego apenas se activa.
-8. `AI_Temp_Sensor1/2` están en %MD0/%MD4 (memoria, no entrada analógica). Revisar de dónde viene el valor del sensor.
-9. Restos en las Networks 14 y 26 (`MOVE Tx, %VWxx`, `ST %BR0.0`).
+## Prueba en KincoBuilder (2026-11-04)
+1. OK: Compile All -> 0 errores, 0 warnings, 173 instrucciones.
+2. OK: MAIN en LD carga el `.ilp` editado (networks 0-46). Se ven bien la 0 (`%SM0.1`), la 33 (sirena con dos `OR(`), la 45 (`R_TRIG` de minutos) y la 46.
+3. Al compilar, KincoBuilder guardó el proyecto: `.obj` ya tiene la copia nueva, `.kgv` se reordenó y quitó T3/T6/T7.
+4. **Pendiente (necesita el PLC):** sin simulador en KincoBuilder. Descargar y forzar `%AIW0` = 16000 -> 75 °C, `Fire_Detected_Zone1`, `Alarm_Critical` y rociador a los 5 s.
+
+## Qué se cambió en el ladder (resumen)
+- **Temperaturas (networks 1-7):** leen `%AIW0`/`%AIW2` con `(raw-4000)/16`, que da décimas de °C. El límite de 0 a 100 °C se aplica en DINT y recién después se pasa a REAL. Para la HMI se copian a %VD0/%VD4 en décimas.
+- **Primer scan (network 0):** advertencia 50 °C, crítico 70 °C, retardo de alarma 3 s, retardo de rociadores 5 s.
+- **Advertencia:** se activa con `HMI_Temp_Max >= HMI_Threshold_Warning` (una sola network).
+- **Sirena:** una sola network que combina:
+  - continua por T4, o por `Alarm_Latched` cuando la alarma crítica ya no está (para que el retardo sirva),
+  - intermitente con `%SM0.3` en advertencia.
+- **Baliza:** parpadea con `%SM0.3`. Ya no se usan T6/T7.
+- **Contador de eventos:** suma con el flanco de `Alarm_Critical`. El test no suma aparte.
+- **Timers:**
+  - Test: T2 en 10000 (10 s).
+  - Silencio: T8 en 12000 (120 s). T3 ya no se usa.
+  - Retardos: s x 100 (T4/T5 cuentan en 10 ms).
+- **Horas:** se cuentan los flancos de `%SM0.6` en `System_Minutes` (%LW70, variable nueva) y cada 60 se suma una hora.
+- **Estado del sistema:** los estados 2 y 1 tienen `ANDN Alarm_Latched` para no pisar el 3.
+
+## Datos del equipo (de la ayuda de KincoBuilder y del manual del MK)
+- AI: %AIW0 y %AIW2. En 4-20 mA el valor va de 4000 a 20000 (mA x 1000).
+- Timers: T0-T3 cuentan en 1 ms, T4-T19 en 10 ms y T20-T255 en 100 ms. El máximo es 32767 cuentas.
+- SM0.0 está siempre en ON, SM0.1 solo en el primer scan, SM0.3 es un reloj de 1 s, SM0.4 de 2 s, SM0.5 de 4 s y SM0.6 de 60 s.
+- IL: `ADD/SUB/MUL/DIV IN, OUT` hacen `OUT = OUT op IN`. Las comparaciones (`GE`, `LT`...) dejan en CR el AND con el resultado.
+- Área L (variables locales): no es retentiva y no conviene accederla directo. La HMI no la ve.
+- Área V: 4 KB. Es retentiva de VB0 a VB1907.
+
+## Pendientes
+1. Probar el ladder en el PLC real (ver arriba, punto 4).
+2. Mover las variables `HMI_*` del área %L a %V para que la HMI pueda leerlas y escribirlas. Hoy solo están en %V las temperaturas (%VD0/%VD4). Seguramente haya que declararlas como globales en KincoBuilder: la tabla global vive en el `.kpr` (binario), así que conviene hacerlo desde la interfaz.
+3. Confirmar en la configuración de hardware que AI0 y AI1 estén en 4-20 mA.
+4. Sensor cortado: con 0 mA la temperatura queda en 0 °C y no se avisa ninguna falla.
+5. `AI_Temp_Sensor1/2` (%MD0/%MD4) ya no se usan: el programa lee %AIW0/%AIW2 directo.
+6. Hacer las pantallas de la HMI en DTools.

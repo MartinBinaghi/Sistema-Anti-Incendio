@@ -40,4 +40,5 @@ VAR
     Delay_Alarm_Time  AT  %LW66 : INT ; (*  *) 
     Delay_Sprinkler_Time  AT  %LW68 : INT ; (*  *) 
     TP_Alarm_Pulse  AT  %LW50 : INT ; (*  *) 
+    System_Minutes  AT  %LW70 : INT ; (*  *) 
 END_VAR
