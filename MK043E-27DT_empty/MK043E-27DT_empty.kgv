@@ -33,11 +33,14 @@ VAR_GLOBAL
     HMI_Sprinklers_Active AT  %V50.3   :BOOL  ;  (*HMI*)
     Silence_Active AT  %V50.4   :BOOL  ;  (*HMI*)
     Test_Mode AT  %V50.5   :BOOL  ;  (*HMI*)
+    HMI_Fault_Zone1 AT  %V50.6   :BOOL  ;  (*Falla sensor zona 1*)
+    HMI_Fault_Zone2 AT  %V50.7   :BOOL  ;  (*Falla sensor zona 2*)
     HMI_BTN_Reset AT  %V51.0   :BOOL  ;  (*HMI*)
     HMI_BTN_Silence_Alarm AT  %V51.1   :BOOL  ;  (*HMI*)
     HMI_BTN_Test_System AT  %V51.2   :BOOL  ;  (*HMI*)
     HMI_BTN_Manual_Zone1 AT  %V51.3   :BOOL  ;  (*HMI*)
     HMI_BTN_Manual_Zone2 AT  %V51.4   :BOOL  ;  (*HMI*)
+    HMI_Warning AT  %V52.0   :BOOL  ;  (*Advertencia (copia para eventos)*)
 END_VAR
 VAR_GLOBAL
     T0     :TP    ;  (*  *)
